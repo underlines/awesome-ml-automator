@@ -2,17 +2,17 @@ import re
 import json
 import requests
 import os
-import openai
 import arxiv
 from datetime import datetime
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+from llm import LLMManager
 
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize LLMManager
+llm_manager = LLMManager()
 
 def is_valid_url(url):
     """Check if the URL is a valid GitHub repository or arXiv paper link."""
@@ -76,18 +76,13 @@ def summarize_content(content: str, url_type: str) -> str:
     {content}
     """
     try:
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            max_tokens=1000
+        response = llm_manager.send_message(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt
         )
-        return response.choices[0].message.content
+        return response
     except Exception as e:
         return f"An error occurred: {str(e)}"
-
 
 def update_json_files(metadata):
     """Update the JSON files with new metadata."""
