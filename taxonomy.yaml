@@ -1,0 +1,80 @@
+Tools for Large Language Models (LLMs):
+  description: Comprehensive categories for tools and frameworks designed to enhance the functionality, deployment, and interaction with large language models.
+
+User Interfaces:
+  Native GUIs:
+    description: Native Desktop and Mobile Applications to interact with LLMs either remotely via APIs or locally or both. Providing functionalities like speech-to-text, Retrieval Augmented Generation (RAG), and more. They either consist only of a front-end needing an API endpoint or are included with a back-end like llama.cpp, transformers, tensorRT, etc., to run inference of local LLMs.
+    features: [Speech-to-text, Retrieval Augmented Generation (RAG), local or remote API connections]
+  Web GUIs:
+    description: Web-based interfaces for interacting with LLMs either remotely via APIs or locally or both. They either consist only of a front-end needing an API endpoint or are included with a back-end like llama.cpp, transformers, tensorRT, etc., to run inference of local LLMs.
+    features: [Front-end with optional back-end for local inference]
+  Browser Extensions:
+    description: Extensions for web browsers that enhance the browsing experience by integrating LLM capabilities for tasks like assisted writing, website content summarization, Q&A with existing website content as a chat sidebar, or even browser automation.
+    features: [Assisted writing, content summarization, Q&A, automation]
+
+Interaction Enhancements:
+  Voice Assistants:
+    description: Speech to text, Text to speech but no multi-modality for audio. Voice-activated assistants that use LLMs to provide conversational AI capabilities, tool use, home automation, etc.
+    features: [Speech-to-text, text-to-speech, conversational AI, home automation]
+  Retrieval Augmented Generation (RAG):
+    description: Retrieval Augmented Generation (RAG) integrates information retrieval with the generation capabilities of LLMs, enhancing their ability to provide accurate and contextually relevant responses by pulling in external data sources like documents, databases, knowledge graphs, and web search, sometimes using vector databases for text similarity. When local inference is provided, enhanced privacy and control is possible without any data leaking to the internet or other providers.
+    features: [External data sources, vector databases, enhanced privacy and control]
+  Multi Modality:
+    description: Multi Modal projects integrate multiple types of input and output data, such as text, images, audio, and video, into either text-only LLMs or true multi-modal models. These tools enhance the capabilities of LLMs by enabling them to handle and process various forms of data, leading to more versatile and powerful applications. Examples include models that combine visual and textual data, autonomous agents with multimodal perception, and frameworks for cross-modal interactions.
+    features: [Cross-modal interactions, multimodal perception]
+  Code Generation:
+    description: Code generation tools utilize LLMs to assist with or automate the process of writing, completing, testing, and understanding code. These tools range from alternatives to GitHub Copilot to autonomous agents capable of solving software engineering tasks. They provide functionalities such as code completion, bug fixing, documentation generation, and more, often integrating directly into development environments like VSCode or console terminals.
+    features: [Code completion, bug fixing, documentation generation, copilots, VS Code extensions]
+  Agents:
+    description: Autonomous agents that perform tasks using LLMs, often integrating additional tools and databases to complete complex workflows. Some solutions are single agents, some deploy multiple agents, and some dynamically plan and create a team of sub-agents. Some allow tool use, automatic API discovery and calling capabilities, and code execution. Some agents have short and long-term memory.
+    features: [Tool integration, multi-agent systems, memory capabilities, function calling]
+  Prompt Engineering, Templating, and Grammar:
+    description: Tools that are focused on improving the output of LLMs through structured templates and grammars. They help in generating outputs that follow specific formats, adhere to constraints, and reduce errors. These tools are essential for applications requiring precise and reliable language generation, such as JSON generation, coding, document creation, and data extraction.
+    features: [Templates, grammars, format adherence, error reduction]
+
+Development and Deployment:
+  Backends:
+    description: Backend implementations and frameworks that support efficient inference of LLMs on various hardware, including support for quantization and memory-efficient models, model serving, caching, batch processing, and multi-user support. Either providing local inference, or as an inference server scaling to many requests for multiple users.
+    features: [Quantization, memory efficiency, model serving, batch processing]
+  Libraries and Wrappers:
+    description: Libraries and Wrappers provide various interfaces and tools to interact with LLMs via code. They facilitate integration of LLMs into applications, offering functionalities such as streamlining, caching, or automating API requests, and connecting with other services like text-to-speech. Some libraries provide API emulation, orchestration, tool use, prompt engineering, alignment, etc., within application development for LLMs. These tools are flexible and support various models and architectures, enabling developers to build complex LLM-based applications.
+    features: [API emulation, orchestration, tool use, prompt engineering]
+  Model Fine Tuning & Training:
+    description: Fine-tuning and training tools are designed to optimize and adapt large language models for specific tasks or domains. These tools support various techniques like LoRa, QLoRA, and PEFT, and offer environments for efficient model training and fine-tuning. They cater to users looking to customize pre-trained models for improved performance in specialized applications.
+    features: [LoRa, QLoRA, PEFT]
+  Model Merging:
+    description: Merging tools focus on combining different pre-trained model weights if their architecture is similar. These tools enable the merging of model capabilities.
+    features: [Enhanced model capabilities through merging]
+  Model Quantization:
+    description: Quantization tools help compress LLMs to make them more efficient and resource-friendly without significant loss in quality so they can run on limited hardware. Methods include lowering the parameter count by removing unused parameters, precision decrease of weights, and more. Techniques include GGUF, iMatrix, Ternary 1-bit, AWQ, GPTQ, HQQ, QuIP, and QMoE.
+    features: [GGUF, iMatrix, Ternary 1-bit, AWQ, GPTQ, HQQ, QuIP, QMoE]
+  LLMOps:
+    description: LLMOps, AIOps, or DevOps tools that focus on the deployment, management, and optimization of AI models and applications. These tools facilitate the operational aspects of AI, enabling efficient use of resources, scalability, and monitoring. They include systems for distributed deep learning, inference engines, and tools for managing machine learning experiments and deployments. Key features often include support for various hardware configurations, cloud platforms, and optimizations for speed and efficiency.
+    features: [Distributed learning, inference engines, ML experiment management]
+
+Data and Benchmarking:
+  Data Sets:
+    description: Collections of datasets used to train and fine-tune large language models (LLMs) for various applications, such as code generation, instruction following, multilingual parsing, and financial analysis. These datasets include cleaned and pre-processed data, multilingual datasets, domain-specific data, and comprehensive datasets for specific purposes like trivia, math, coding, and realistic task-oriented dialogues.
+    features: [Cleaned data, multilingual, domain-specific, comprehensive sets]
+  Benchmarking:
+    Leaderboards:
+      description: Collections of platforms and resources for evaluating and comparing the performance of LLMs across various tasks and benchmarks. This includes leaderboards for general LLM performance, coding capabilities, quantization effects, and real-world enterprise scenarios.
+      features: [General performance, coding, quantization, enterprise scenarios]
+    Benchmark Suites:
+      description: Comprehensive frameworks and tools for systematically evaluating the capabilities and performance of LLMs. These suites cover a wide range of tasks, from general language understanding and SQL query generation to retrieval-augmented generation and code editing instructions.
+      features: [Language understanding, SQL generation, RAG, code editing]
+
+Specialized Tools:
+  Databases for ML:
+    description: Databases for machine learning are specialized for handling and querying large amounts of data used in AI and machine learning tasks. These databases often support vector search and embedding storage or are Graph-based, which are crucial for tasks such as semantic search, recommendation systems, and information retrieval. They can handle various data types, including text, images, and audio, or multi-modality, and are optimized for performance and scalability.
+    features: [Vector search, embedding storage, semantic search, scalability]
+  Safety, Responsibility, and Red Teaming:
+    description: Tools in this category focus on ensuring the safety, ethical use, and security of LLMs. They include tools for risk identification, cybersecurity evaluations, and measures to assess and improve the security of large language models (LLMs). These tools are essential for identifying vulnerabilities, ensuring compliance with ethical standards, and protecting against potential threats in AI applications. Undesirable effects using LLMs include Bias, Unethical requests and responses, hallucination, code execution, and prompt jailbreaking to evade alignment.
+    features: [Risk identification, bias reduction, ethical compliance, cybersecurity]
+
+Product Showcases:
+  description: Highlights innovative products, SaaS, and Startups applying AI and LLMs, such as RAG Chatbots, virtual try-on solutions, and various assistive technologies. This category features products that are usually not open source and built for profit.
+  features: [RAG chatbots, virtual try-on solutions, assistive technologies]
+
+Research:
+  description: Research papers and projects focused on advancing LLM technology. Topics include model efficiency, context length extension, multimodal capabilities, model alignment, quantization techniques, and new architectures. This category also covers methods for fine-tuning, optimizing

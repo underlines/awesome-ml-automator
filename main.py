@@ -1,68 +1,177 @@
-import requests
-from bs4 import BeautifulSoup
-import os
+import re
 import json
+import requests
+import os
+import openai
+import arxiv
+from datetime import datetime
+from urllib.parse import urlparse
+from dotenv import load_dotenv
 
-# Placeholder for LLM summarization function
-def summarize_content(url):
-    # This function should scrape the content and summarize it.
-    # You'll replace this with your actual scraping and summarization logic.
-    # Return a summary as a string.
-    return "Expert-level summary of the content."
+# Load environment variables
+load_dotenv()
 
-# Placeholder for reading and structuring .md files
-def read_md_structure(directory):
-    structure = {}
-    for filename in os.listdir(directory):
-        if filename.endswith(".md"):
-            with open(os.path.join(directory, filename), 'r', encoding='utf-8') as file:
-                structure[filename] = file.read()  # This is simplified; you'll parse titles/subtitles
-    # Assuming you convert this to a more structured form, like a dict of titles to subtitles
-    return structure
+# Initialize OpenAI client
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Placeholder for LLM to find the best location for the new entry
-def find_best_location(summary, structure):
-    # This function should analyze the summary and the existing structure to find the best location.
-    # Return a dict with the filename and location (title/subtitle) as keys.
-    return {"filename": "example.md", "title": "Existing Title", "subtitle": "Existing Subtitle"}
+def is_valid_url(url):
+    """Check if the URL is a valid GitHub repository or arXiv paper link."""
+    github_pattern = r'^https?://github\.com/[\w-]+/[\w.-]+/?$'
+    arxiv_pattern = r'^https?://arxiv\.org/abs/\d+\.\d+(v\d+)?$'
+    return re.match(github_pattern, url) or re.match(arxiv_pattern, url)
 
-# Function to add a new entry
-def add_new_entry(filename, title, subtitle, new_entry, directory):
-    # This should parse the specified .md file and insert the new entry under the right title/subtitle
-    path = os.path.join(directory, filename)
-    with open(path, 'r+', encoding='utf-8') as file:
-        content = file.read()
-        # Find the location and insert the new entry - this is simplified
-        # In practice, you'd parse the content and find the exact insertion point
-        insertion_point = f"## {subtitle}\n"
-        insertion_index = content.find(insertion_point) + len(insertion_point)
-        new_content = content[:insertion_index] + f"- [{new_entry['name']}](https://www.link.com/) {new_entry['description']}\n" + content[insertion_index:]
-        file.seek(0)
-        file.write(new_content)
-        file.truncate()
+def get_github_metadata(url):
+    """Retrieve metadata for a GitHub repository."""
+    api_url = f"https://api.github.com/repos/{urlparse(url).path.strip('/')}"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        readme_url = f"{api_url}/readme"
+        readme_response = requests.get(readme_url)
+        readme_content = ""
+        if readme_response.status_code == 200:
+            readme_data = readme_response.json()
+            readme_content = requests.get(readme_data['download_url']).text
 
-# Main function
+        return {
+            "url": url,
+            "fetch_date": datetime.now().isoformat(),
+            "repository_stars": data['stargazers_count'],
+            "last_commit_date": data['pushed_at'],
+            "about_text": data['description'],
+            "readme_md_text": readme_content,
+            "project_title": data['name']
+        }
+    return None
+
+def get_arxiv_metadata(url):
+    """Retrieve metadata for an arXiv paper."""
+    paper_id = url.split('/')[-1]
+    search = arxiv.Search(id_list=[paper_id])
+    result = next(search.results(), None)
+    
+    if result:
+        return {
+            "url": url,
+            "fetch_date": datetime.now().isoformat(),
+            "abstract_text": result.summary,
+            "publish_date": result.published.isoformat(),
+            "author_names": [author.name for author in result.authors],
+            "paper_title": result.title
+        }
+    return None
+
+def summarize_content(content: str, url_type: str) -> str:
+    system_prompt = f"""
+    # Instruction
+    - You are a computer scientist in the field of AI and ML.
+    - Read the following {url_type} description and summarize it in one sentence, highlighting what's mind blowing or revolutionary.
+    - Focus on the main benefits or USPs and what it solves or improves and how.
+    - If certain technologies and methods have an important role, mention them in the summary.
+    - Don't mention the title or name of the project, as it will already be in the summary.
+    - Don't mention other things, just the summary.
+    """
+    user_prompt = f"""
+    # Description
+    {content}
+    """
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=1000
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
+
+
+def update_json_files(metadata):
+    """Update the JSON files with new metadata."""
+    url_type_filename = "url_type.json"
+    metadata_filename = "metadata.json"
+    
+    try:
+        with open(url_type_filename, 'r') as f:
+            url_data = json.load(f)
+    except FileNotFoundError:
+        url_data = {"github": [], "arxiv": []}
+
+    try:
+        with open(metadata_filename, 'r') as f:
+            metadata_data = json.load(f)
+    except FileNotFoundError:
+        metadata_data = {}
+
+    url_type = "github" if "github.com" in metadata["url"] else "arxiv"
+    metadata_id = str(len(metadata_data) + 1)
+    
+    # Create or update the metadata entry
+    summary = ""
+    if url_type == "github":
+        publisher_date_update = metadata["last_commit_date"]
+        content = f"{url_type.capitalize()} Project Title: {metadata['project_title']}\nAbout: {metadata['about_text']}\nReadme: {metadata['readme_md_text'][:400]}"
+        summary = summarize_content(content, url_type)
+    else:
+        publisher_date_update = metadata["publish_date"]
+        content = f"{url_type.capitalize()} Paper Title: {metadata['paper_title']}\nAbstract: {metadata['abstract_text']}"
+        summary = summarize_content(content, url_type)
+    
+    # Check if the URL already exists in the data
+    url_exists = False
+    for entry in url_data[url_type]:
+        if entry["url"] == metadata["url"]:
+            entry["fetch_date_update"] = metadata["fetch_date"]
+            entry["publisher_date_update"] = publisher_date_update
+            if not entry.get("summary"):
+                entry["summary"] = summary
+            metadata_data[entry["metadata_id"]].update(metadata)
+            url_exists = True
+            break
+    
+    if not url_exists:
+        new_entry = {
+            "id": len(url_data[url_type]) + 1,
+            "url": metadata["url"],
+            "fetch_date_first": metadata["fetch_date"],
+            "fetch_date_update": metadata["fetch_date"],
+            "publisher_date_update": publisher_date_update,
+            "summary": summary,
+            "metadata_id": metadata_id
+        }
+        url_data[url_type].append(new_entry)
+        metadata_data[metadata_id] = metadata
+
+    # Write the updated data back to the JSON files
+    with open(url_type_filename, 'w') as f:
+        json.dump(url_data, f, indent=2)
+    
+    with open(metadata_filename, 'w') as f:
+        json.dump(metadata_data, f, indent=2)
+
 def main():
-    url = input("Enter the URL: ")
-    directory = "C:\\Users\\jb\\Documents\\GitHub\\awesome-ml"
-    
-    # Step 1: Summarize content
-    summary = summarize_content(url)
-    
-    # Step 2: Read and structure existing .md files
-    structure = read_md_structure(directory)
-    
-    # Step 3: Find best location
-    location = find_best_location(summary, structure)
-    
-    # Step 4: Add new entry
-    new_entry = {
-        "name": "New Entry",
-        "description": summary  # Assuming summary includes a snappy description
-    }
-    add_new_entry(location["filename"], location["title"], location["subtitle"], new_entry, directory)
-    
-    print("New entry added successfully.")
+    while True:
+        url = input("Enter a GitHub repository or arXiv paper URL (or 'quit' to exit): ")
+        if url.lower() == 'quit':
+            break
+
+        if not is_valid_url(url):
+            print("Invalid URL. Please enter a valid GitHub repository or arXiv paper URL.")
+            continue
+
+        if "github.com" in url:
+            metadata = get_github_metadata(url)
+        else:
+            metadata = get_arxiv_metadata(url)
+
+        if metadata:
+            update_json_files(metadata)
+            print(f"Metadata for {url} has been updated in the JSON files.")
+        else:
+            print(f"Failed to retrieve metadata for {url}.")
 
 if __name__ == "__main__":
     main()
