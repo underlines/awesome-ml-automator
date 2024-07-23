@@ -1,4 +1,3 @@
-import re
 import json
 import requests
 import os
@@ -9,8 +8,45 @@ from dotenv import load_dotenv
 from llm import LLMManager
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
+from uuid import uuid4
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+from uuid import UUID
 
 load_dotenv()
+
+class Header(BaseModel):
+    id: UUID
+    url: str
+    first_fetched_at: datetime
+    last_fetched_at: datetime
+    last_published_at: datetime
+    title: str
+    generated_summary: str
+
+class GithubDetail(BaseModel):
+    about_text: str
+    readme_text: str
+    author: str
+    license: str
+    repository_stars: int
+
+class ArxivDetail(BaseModel):
+    authors: List[str]
+    abstract: str
+
+class GithubEntry(BaseModel):
+    header: Header
+    detail: GithubDetail
+
+class ArxivEntry(BaseModel):
+    header: Header
+    detail: ArxivDetail
+
+class Data(BaseModel):
+    github: List[GithubEntry] = Field(default_factory=list)
+    arxiv: List[ArxivEntry] = Field(default_factory=list)
 
 class MetadataGatherer(ABC):
     @abstractmethod
@@ -31,13 +67,11 @@ class GitHubMetadataGatherer(MetadataGatherer):
                 readme_content = requests.get(readme_data['download_url']).text
 
             return {
-                "url": url,
-                "fetch_date": datetime.now().isoformat(),
-                "repository_stars": data['stargazers_count'],
-                "last_commit_date": data['pushed_at'],
                 "about_text": data['description'],
-                "readme_md_text": readme_content,
-                "project_title": data['name']
+                "readme_text": readme_content,
+                "author": data['owner']['login'],
+                "license": data['license']['name'] if data['license'] else '',
+                "repository_stars": data['stargazers_count'],
             }
         return None
 
@@ -49,41 +83,28 @@ class ArxivMetadataGatherer(MetadataGatherer):
         
         if result:
             return {
-                "url": url,
-                "fetch_date": datetime.now().isoformat(),
-                "abstract_text": result.summary,
-                "publish_date": result.published.isoformat(),
-                "author_names": [author.name for author in result.authors],
-                "paper_title": result.title
+                "authors": [author.name for author in result.authors],
+                "paper_title": result.title,
+                "publish_date": result.published,
+                "abstract": result.summary,
             }
         return None
 
 class JSONDataHandler:
-    def __init__(self, url_type_filename: str, metadata_filename: str):
-        self.url_type_filename = url_type_filename
+    def __init__(self, metadata_filename: str):
         self.metadata_filename = metadata_filename
 
-    def load_data(self) -> tuple:
-        try:
-            with open(self.url_type_filename, 'r') as f:
-                url_data = json.load(f)
-        except FileNotFoundError:
-            url_data = {"github": [], "arxiv": []}
-
+    def load_data(self) -> Data:
         try:
             with open(self.metadata_filename, 'r') as f:
-                metadata_data = json.load(f)
+                metadata_data = Data.parse_raw(f.read())
         except FileNotFoundError:
-            metadata_data = {}
+            metadata_data = Data()
+        return metadata_data
 
-        return url_data, metadata_data
-
-    def save_data(self, url_data: Dict, metadata_data: Dict):
-        with open(self.url_type_filename, 'w') as f:
-            json.dump(url_data, f, indent=2)
-        
+    def save_data(self, metadata_data: Data):
         with open(self.metadata_filename, 'w') as f:
-            json.dump(metadata_data, f, indent=2)
+            f.write(metadata_data.json(indent=2))
 
 class Summarizer:
     def __init__(self, llm_manager: LLMManager):
@@ -113,69 +134,32 @@ class Summarizer:
         except Exception as e:
             return f"An error occurred: {str(e)}"
 
-class Entry:
-    def __init__(self, url: str, entry_type: str, metadata: Dict):
-        self.url = url
-        self.entry_type = entry_type
-        self.metadata = metadata
-        self.summary = ""
-
-    def generate_summary(self, summarizer: Summarizer):
-        if self.entry_type == "github":
-            content = f"GitHub Project Title: {self.metadata['project_title']}\nAbout: {self.metadata['about_text']}\nReadme: {self.metadata['readme_md_text'][:400]}"
-        else:
-            content = f"arXiv Paper Title: {self.metadata['paper_title']}\nAbstract: {self.metadata['abstract_text']}"
-        self.summary = summarizer.summarize(content, self.entry_type)
-
-    def to_dict(self) -> Dict:
-        return {
-            "url": self.url,
-            "entry_type": self.entry_type,
-            "metadata": self.metadata,
-            "summary": self.summary
-        }
-
 class EntryManager:
     def __init__(self, json_handler: JSONDataHandler, summarizer: Summarizer):
         self.json_handler = json_handler
         self.summarizer = summarizer
 
-    def add_or_update_entry(self, entry: Entry):
-        url_data, metadata_data = self.json_handler.load_data()
+    def add_or_update_entry(self, url: str, entry_type: str, metadata: Dict):
+        data = self.json_handler.load_data()
         
-        url_type = entry.entry_type
-        metadata_id = str(len(metadata_data) + 1)
-        
-        entry.generate_summary(self.summarizer)
-        
-        # Check if the URL already exists in the data
-        url_exists = False
-        for existing_entry in url_data[url_type]:
-            if existing_entry["url"] == entry.url:
-                existing_entry["fetch_date_update"] = entry.metadata["fetch_date"]
-                existing_entry["publisher_date_update"] = entry.metadata["last_commit_date" if url_type == "github" else "publish_date"]
-                if not existing_entry.get("summary"):
-                    existing_entry["summary"] = entry.summary
-                metadata_data[existing_entry["metadata_id"]].update(entry.metadata)
-                url_exists = True
+        entry_list = getattr(data, entry_type)
+        for existing_entry in entry_list:
+            if existing_entry.header.url == url:
+                existing_entry.header.last_fetched_at = datetime.now()
+                existing_entry.header.last_published_at = datetime.fromisoformat(metadata['last_commit_date' if entry_type == "github" else 'publish_date'])
+                existing_entry.header.generated_summary = self.summarizer.summarize(existing_entry.header.title, entry_type)
+                existing_entry.detail = metadata
                 break
-        
-        if not url_exists:
-            new_entry = {
-                "id": len(url_data[url_type]) + 1,
-                "url": entry.url,
-                "fetch_date_first": entry.metadata["fetch_date"],
-                "fetch_date_update": entry.metadata["fetch_date"],
-                "publisher_date_update": entry.metadata["last_commit_date" if url_type == "github" else "publish_date"],
-                "summary": entry.summary,
-                "metadata_id": metadata_id
-            }
-            url_data[url_type].append(new_entry)
-            metadata_data[metadata_id] = entry.metadata
+        else:
+            uuid = uuid4()
+            header = Header(id=uuid, url=url, first_fetched_at=datetime.now(), last_fetched_at=datetime.now(), 
+                            last_published_at=datetime.fromisoformat(metadata['last_commit_date' if entry_type == "github" else 'publish_date']), 
+                            title=metadata['project_title' if entry_type == "github" else 'paper_title'], 
+                            generated_summary=self.summarizer.summarize(metadata['project_title' if entry_type == "github" else 'paper_title'], entry_type))
+            entry = GithubEntry(header=header, detail=metadata) if entry_type == "github" else ArxivEntry(header=header, detail=metadata)
+            entry_list.append(entry)
 
-        self.json_handler.save_data(url_data, metadata_data)
-
-import re
+        self.json_handler.save_data(data)
 
 def is_valid_url(url: str) -> bool:
     github_pattern = r'^https?://github\.com/[\w-]+/[\w.-]+/?$'
@@ -184,7 +168,7 @@ def is_valid_url(url: str) -> bool:
 
 def main():
     llm_manager = LLMManager()
-    json_handler = JSONDataHandler("links.json", "metadata.json")
+    json_handler = JSONDataHandler("metadata.json")
     summarizer = Summarizer(llm_manager)
     entry_manager = EntryManager(json_handler, summarizer)
 
@@ -208,9 +192,8 @@ def main():
             entry_type = "arxiv"
 
         if metadata:
-            entry = Entry(url, entry_type, metadata)
-            entry_manager.add_or_update_entry(entry)
-            print(f"Metadata for {url} has been updated in the JSON files.")
+            entry_manager.add_or_update_entry(url, entry_type, metadata)
+            print(f"Metadata for {url} has been updated in the JSON file.")
         else:
             print(f"Failed to retrieve metadata for {url}.")
 
