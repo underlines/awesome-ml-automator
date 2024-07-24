@@ -1,0 +1,32 @@
+{
+  "Creating and Modifying LLMs": [
+    "Training & Fine Tuning",
+    "Model Merging",
+    "Model Quantization",
+    "Data sets"
+  ],
+  "Using LLMs": [
+    "Chat Interfaces",
+    "Voice Assistants",
+    "Browser Extensions",
+    "Code Generation",
+    "RAG",
+    "Agents",
+    "Prompt Engineering, Templating and Grammar",
+    "Multi Modality",
+    "Code Libraries and Bindings",
+    "Databases for LLMs"
+  ],
+  "Serving": [
+    "Backends and Inference",
+    "LLMOps",
+    "Proxies and Load Balancers",
+    "Safety, Responsibility and Red Teaming"
+  ],
+  "Evaluate": [
+    "Leaderboards",
+    "Benchmark Suites"
+  ],
+  "Research": [],
+  "Product Showcases": []
+}

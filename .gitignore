@@ -1,6 +1,4 @@
 .env
 __pycache__
 .vscode
-links.json
-metadata.json
-url_type.json
+*metadata.json*
