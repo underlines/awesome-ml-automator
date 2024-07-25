@@ -5,6 +5,8 @@ from summarizer import summarize_arxiv_paper, summarize_github_project
 
 def main(url: str):
     """Main function to process the URL."""
+    url = metadata_fetcher.clean_url(url)
+
     metadata = metadata_file_handler.load_metadata()
 
     if url in metadata:

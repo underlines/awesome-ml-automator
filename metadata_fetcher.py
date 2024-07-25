@@ -41,20 +41,12 @@ class GithubRepo(BaseModel):
 def fetch_arxiv_data(url: str) -> ArxivPaper:
     """Fetch data for an arXiv paper."""
     try:
-        # Step 1: Convert /pdf/ to /abs/
-        parsed_url = urlparse(url)
-        path_parts = parsed_url.path.split("/")
-        if "pdf" in path_parts:
-            path_parts[path_parts.index("pdf")] = "abs"
-            url = urlunparse(parsed_url._replace(path="/".join(path_parts)))
-
-        # Step 2: Remove version number
-        url = re.sub(r"v\d+$", "", url)
+        url = clean_url(url)
 
         # Extract paper_id
         paper_id = url.split("/")[-1]
 
-        # Step 3: Fetch data
+        # Fetch data
         search = arxiv.Search(id_list=[paper_id])
         paper = next(search.results())
 
@@ -77,6 +69,8 @@ def fetch_github_data(url: str) -> GithubRepo:
     try:
         g = Github()
 
+        url = clean_url(url)
+
         # Extract repo full name from URL
         parsed_url = urlparse(url)
         repo_full_name = "/".join(parsed_url.path.strip("/").split("/")[:2])
@@ -88,6 +82,7 @@ def fetch_github_data(url: str) -> GithubRepo:
 
         try:
             readme = repo.get_readme().decoded_content.decode()
+            readme = process_markdown(readme)
         except GithubException:
             readme = "No README available"
 
@@ -109,3 +104,46 @@ def fetch_github_data(url: str) -> GithubRepo:
             raise RuntimeError(f"GitHub API error: {str(e)}")
     except Exception as e:
         raise RuntimeError(f"Error fetching GitHub data: {str(e)}")
+
+
+def clean_url(url: str) -> str:
+    """Cleans the URL to meet the requirements."""
+    parsed_url = urlparse(url)
+
+    if "github.com" in parsed_url.netloc:
+        # Keep only the first two path segments (username and repo name)
+        path = "/".join(parsed_url.path.strip("/").split("/")[:2])
+        return urlunparse(
+            parsed_url._replace(path=f"/{path}", params="", query="", fragment="")
+        )
+
+    elif "arxiv.org" in parsed_url.netloc:
+        # Replace 'pdf' with 'abs' in the path and remove version number
+        path = parsed_url.path.replace("/pdf/", "/abs/")
+        path = re.sub(r"v\d+$", "", path)
+        return urlunparse(
+            parsed_url._replace(path=path, params="", query="", fragment="")
+        )
+
+    else:
+        raise ValueError("Invalid URL. Must be an arXiv or GitHub URL.")
+
+
+def process_markdown(markdown):
+    # Remove HTML tags
+    html_tag_pattern = r"<[^>]*>"
+    markdown = re.sub(html_tag_pattern, "", markdown)
+
+    # Remove markdown links
+    md_link_pattern = r"\[(.*?)\]\(.*?\)"
+    markdown = re.sub(md_link_pattern, r"\1", markdown)
+
+    # Remove code blocks
+    code_block_pattern = r"```.*?```"
+    markdown = re.sub(code_block_pattern, "(code example)", markdown, flags=re.DOTALL)
+
+    # Remove markdown tables
+    md_table_pattern = r"\|.*?\|"
+    markdown = re.sub(md_table_pattern, "(table)", markdown, flags=re.DOTALL)
+
+    return markdown
