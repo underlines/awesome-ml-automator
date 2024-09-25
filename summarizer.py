@@ -7,12 +7,9 @@ from metadata_fetcher import ArxivPaper, GithubRepo
 load_dotenv()
 
 
-def summarize(text: str, instruction: str) -> str:
-    # Get the LLM backend from environment variable
-    llm_backend = os.getenv("SUMMARIZER_LLM_BACKEND", "ollama")
-
-    # Create LLMManager instance
-    llm_manager = LLMManager(default_client=llm_backend)
+def summarize(text: str, instruction: str, llm: str) -> str:
+    # Create LLMManager instance with the specified client
+    llm_manager = LLMManager(default_client=llm)
 
     # Send message and get summary
     summary = llm_manager.send_message(system_prompt=instruction, user_prompt=text)
@@ -20,35 +17,29 @@ def summarize(text: str, instruction: str) -> str:
     return summary
 
 
-def summarize_arxiv_paper(paper: ArxivPaper) -> str:
+def summarize_arxiv_paper(paper: ArxivPaper, llm: str) -> str:
     instruction = """
-    Write a very short technical summary for this arxiv paper, capturing the main points, methods and technology used.
-    Exclude Title.
-    Avoid full sentences, articles, subject pronouns and auxiliary verbs.
-    Compress as much as possible in two or less sentences maintaining brevity.
-    
-    Examples:
-    "scaling LLMs with effective Depth Up-Scaling to increase parameter count and continue pre-training"
-    "Half-Quadratic Quantization for LLMs significantly accelerating quantization speed without requiring calibration data, outperforming existing methods in processing speed and memory efficiency"
-    "creating a flexible and scalable platform for LLM-based multi-agent collaboration using an agent integration protocol, an instant-messaging-like architecture, and dynamic mechanisms for agent teaming and conversation flow control, code available"
+    Summarize the arXiv paper's key points, methods, and technology used. 
+    Do not include the paper title in your summary, omit the name and title!
+    Max 2 sentences, be brief.
+    Good examples:
+    "improves <usage> to <benefit> using <technology>"
+    "enables <outcome> for <application>, without <limitation>, surpassing <previous methods>"
     """
     text = f"Title:\n{paper.title}\n\nAbstract:\n{paper.abstract}"
-    return summarize(text, instruction)
+    return summarize(text, instruction, llm)
 
 
-def summarize_github_project(repo: GithubRepo) -> str:
+def summarize_github_project(repo: GithubRepo, llm: str) -> str:
     instruction = """
-    Write a very short technical summary for this github repository, capturing the main points, methods and technology used.
-    Exclude Title.
-    Avoid full sentences, articles, subject pronouns and auxiliary verbs.
-    Compress as much as possible in two or less sentences maintaining brevity.
-    
-    Examples:
-    "framework for autonomous Language Agents. Provides LSTM, Tool Usage, Web Navigation, Multi Agent Communication and Human-Agent interaction"
-    "open source 'Perplexity' clone to answer questions via RAG and web search built with Next.js, Groq, Mixtral, Langchain, OpenAI"
-    "high-speed Model Inference Serving on Consumer GPU/CPU using activation locality for hot/cold neurons"
+    Summarize the GitHub repository's key points, methods, and technology used.
+    Do not include the project name in your summary, omit the name and title!
+    Max 2 sentences, be brief.
+    Good examples:
+    "is a <description> for <usage> using <technology> to <benefit>"
+    "provides <functionality> for <application>, built with <technologies>"
     """
     text = f"Title:\n{repo.title}\n\nAbout:\n{repo.about}"
     if repo.readme:
         text += f"\n\nReadme:\n{repo.readme}"
-    return summarize(text, instruction)
+    return summarize(text, instruction, llm)

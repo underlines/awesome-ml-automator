@@ -27,6 +27,10 @@
     "Leaderboards",
     "Benchmark Suites"
   ],
-  "Research": [],
-  "Product Showcases": []
+  "Research": [
+    "Papers"
+  ],
+  "Product Showcases": [
+    "Websites"
+  ]
 }

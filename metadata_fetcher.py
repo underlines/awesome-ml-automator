@@ -8,7 +8,7 @@ from github import Github, GithubException
 from urllib.parse import urlparse, urlunparse
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 
 class ArxivPaper(BaseModel):
